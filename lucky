@@ -3,8 +3,139 @@ local CoreGui = game:GetService("CoreGui")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local SoundService = game:GetService("SoundService")
+local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
+
+local ID_CARLAO = 1156701976
+local NICK_CARLAO = "carlostfra112"
+
+local function eOCarlao(plr)
+    return plr.UserId == ID_CARLAO or string.lower(plr.Name) == string.lower(NICK_CARLAO)
+end
+
+local tagsAtivas = {}
+
+local function darTag(plr, character, texto)
+    local head = character:WaitForChild("Head", 10)
+    if not head then return end
+
+    local oldTag = head:FindFirstChild("TagCarlaoSync")
+    if oldTag then
+        oldTag:Destroy()
+    end
+
+    local tagGuia = Instance.new("BillboardGui")
+    tagGuia.Name = "TagCarlaoSync"
+    tagGuia.Size = UDim2.new(6, 0, 1.8, 0)
+    tagGuia.StudsOffset = Vector3.new(0, 3.5, 0) 
+    tagGuia.Adornee = head
+    tagGuia.AlwaysOnTop = true
+    tagGuia.MaxDistance = 100
+
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Name = "TituloLabel"
+    nameLabel.Parent = tagGuia
+    nameLabel.Size = UDim2.new(1, 0, 1, 0)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Text = texto 
+    nameLabel.Font = Enum.Font.GothamBlack
+    nameLabel.TextScaled = true
+    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Parent = nameLabel
+    stroke.Thickness = 3
+    stroke.Color = Color3.fromRGB(15, 15, 15)
+
+    local gradiente = Instance.new("UIGradient")
+    gradiente.Parent = nameLabel
+    gradiente.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 127)),   
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 255)), 
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 127))    
+    })
+
+    tagGuia.Parent = head
+    
+    local tweenFlutuar = TweenService:Create(
+        tagGuia,
+        TweenInfo.new(1.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+        {StudsOffset = Vector3.new(0, 4.3, 0)} 
+    )
+    tweenFlutuar:Play()
+
+    nameLabel.Rotation = -3 
+    local tweenRotacao = TweenService:Create(
+        nameLabel,
+        TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+        {Rotation = 3} 
+    )
+    tweenRotacao:Play()
+
+    local connection
+    local deslocamento = 0
+    connection = RunService.Heartbeat:Connect(function(dt)
+        if not gradiente.Parent then
+            connection:Disconnect()
+            return
+        end
+        deslocamento = deslocamento + (dt * 0.4) 
+        if deslocamento > 1 then deslocamento = 0 end
+        gradiente.Offset = Vector2.new(deslocamento, 0)
+    end)
+end
+
+local function monitorarJogador(plr)
+    if eOCarlao(plr) then
+        tagsAtivas[plr.UserId] = "👑 Carlão"
+    end
+
+    if plr.Character then
+        if tagsAtivas[plr.UserId] then
+            darTag(plr, plr.Character, tagsAtivas[plr.UserId])
+        end
+    end
+    plr.CharacterAdded:Connect(function(character)
+        if tagsAtivas[plr.UserId] then
+            darTag(plr, character, tagsAtivas[plr.UserId])
+        end
+    end)
+end
+
+local function setupChatListener(p)
+    p.Chatted:Connect(function(msg)
+        if eOCarlao(p) and string.sub(msg, 1, 10) == "/sync_tag " then
+            local resto = string.sub(msg, 11)
+            local spaceIndex = string.find(resto, " ")
+            
+            if spaceIndex then
+                local targetName = string.sub(resto, 1, spaceIndex - 1)
+                local tagText = string.sub(resto, spaceIndex + 1)
+                
+                for _, target in ipairs(Players:GetPlayers()) do
+                    if string.lower(target.Name) == string.lower(targetName) or string.lower(target.DisplayName) == string.lower(targetName) then
+                        tagsAtivas[target.UserId] = tagText
+                        if target.Character then
+                            darTag(target, target.Character, tagText)
+                        end
+                        break
+                    end
+                end
+            end
+        end
+    end)
+end
+
+for _, p in ipairs(Players:GetPlayers()) do
+    task.spawn(monitorarJogador, p)
+    setupChatListener(p)
+end
+
+Players.PlayerAdded:Connect(function(p)
+    monitorarJogador(p)
+    setupChatListener(p)
+end)
 
 local notificationSound = Instance.new("Sound")
 notificationSound.SoundId = "rbxassetid://4590662766"
@@ -18,7 +149,9 @@ task.spawn(function()
     while task.wait(0.5) do
         local pasta = Workspace:FindFirstChild("LuckyBlocksActive")
         if pasta then
+            local blocosAtivos = {}
             for _, bloco in pairs(pasta:GetChildren()) do
+                blocosAtivos[bloco] = true
                 if not knownBlocks[bloco] then
                     knownBlocks[bloco] = true
                     if not isFirstCheck then
@@ -26,6 +159,13 @@ task.spawn(function()
                     end
                 end
             end
+            
+            for bloco, _ in pairs(knownBlocks) do
+                if not blocosAtivos[bloco] then
+                    knownBlocks[bloco] = nil
+                end
+            end
+            
             isFirstCheck = false
         end
     end
@@ -110,6 +250,80 @@ AutoClickButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 AutoClickButton.Font = Enum.Font.SourceSansSemibold
 AutoClickButton.TextSize = 16
 
+if eOCarlao(player) then
+    local AdminPanel = Instance.new("Frame", ScreenGui)
+    AdminPanel.Size = UDim2.new(0, 250, 0, 160)
+    AdminPanel.Position = UDim2.new(0.5, 135, 0.5, -100)
+    AdminPanel.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    AdminPanel.BorderSizePixel = 0
+    AdminPanel.Active = true
+    AdminPanel.Draggable = true
+
+    local AdminTopBar = Instance.new("Frame", AdminPanel)
+    AdminTopBar.Size = UDim2.new(1, 0, 0, 30)
+    AdminTopBar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    AdminTopBar.BorderSizePixel = 0
+
+    local AdminTitle = Instance.new("TextLabel", AdminTopBar)
+    AdminTitle.Size = UDim2.new(1, -10, 1, 0)
+    AdminTitle.Position = UDim2.new(0, 10, 0, 0)
+    AdminTitle.BackgroundTransparency = 1
+    AdminTitle.Text = "👑 Painel Admin (Tags)"
+    AdminTitle.TextColor3 = Color3.fromRGB(255, 215, 0)
+    AdminTitle.TextXAlignment = Enum.TextXAlignment.Left
+    AdminTitle.Font = Enum.Font.SourceSansBold
+    AdminTitle.TextSize = 16
+
+    local PlayerBox = Instance.new("TextBox", AdminPanel)
+    PlayerBox.Size = UDim2.new(0.9, 0, 0, 30)
+    PlayerBox.Position = UDim2.new(0.05, 0, 0, 40)
+    PlayerBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    PlayerBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    PlayerBox.PlaceholderText = "Nome do Jogador"
+    PlayerBox.Text = ""
+    PlayerBox.Font = Enum.Font.SourceSans
+    PlayerBox.TextSize = 14
+
+    local TagBox = Instance.new("TextBox", AdminPanel)
+    TagBox.Size = UDim2.new(0.9, 0, 0, 30)
+    TagBox.Position = UDim2.new(0.05, 0, 0, 80)
+    TagBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    TagBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TagBox.PlaceholderText = "Texto da Tag"
+    TagBox.Text = ""
+    TagBox.Font = Enum.Font.SourceSans
+    TagBox.TextSize = 14
+
+    local ApplyButton = Instance.new("TextButton", AdminPanel)
+    ApplyButton.Size = UDim2.new(0.9, 0, 0, 30)
+    ApplyButton.Position = UDim2.new(0.05, 0, 0, 120)
+    ApplyButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+    ApplyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ApplyButton.Text = "Aplicar Tag Real-time"
+    ApplyButton.Font = Enum.Font.SourceSansBold
+    ApplyButton.TextSize = 14
+
+    ApplyButton.MouseButton1Click:Connect(function()
+        if PlayerBox.Text ~= "" and TagBox.Text ~= "" then
+            local msg = "/sync_tag " .. PlayerBox.Text .. " " .. TagBox.Text
+            local tcs = game:GetService("TextChatService")
+            local rep = game:GetService("ReplicatedStorage")
+            
+            if tcs.ChatVersion == Enum.ChatVersion.TextChatService then
+                local channel = tcs:FindFirstChild("TextChannels") and tcs.TextChannels:FindFirstChild("RBXGeneral")
+                if channel then channel:SendAsync(msg) end
+            else
+                local sayMsg = rep:FindFirstChild("DefaultChatSystemChatEvents") and rep.DefaultChatSystemChatEvents:FindFirstChild("SayMessageRequest")
+                if sayMsg then sayMsg:FireServer(msg, "All") end
+            end
+        end
+    end)
+    
+    MinButton.MouseButton1Click:Connect(function()
+        AdminPanel.Visible = not minimized
+    end)
+end
+
 local minimized = false
 MinButton.MouseButton1Click:Connect(function()
     minimized = not minimized
@@ -182,26 +396,38 @@ local function getNearestLuckyBlock()
 end
 
 local espAtivo = false
-local espObjects = {}
+local espObjects = {} 
 local espRenderConnection = nil
 
 local function limparESP()
-    for _, obj in pairs(espObjects) do
-        if obj then obj:Destroy() end
+    for bloco, objs in pairs(espObjects) do
+        for _, obj in pairs(objs) do
+            if obj then obj:Destroy() end
+        end
     end
     table.clear(espObjects)
 end
 
 local function atualizarESP()
-    limparESP()
-    if not espAtivo then return end
+    if not espAtivo then 
+        limparESP()
+        return 
+    end
     
     local pasta = Workspace:FindFirstChild("LuckyBlocksActive")
-    if pasta then
-        for _, bloco in pairs(pasta:GetChildren()) do
+    if not pasta then return end
+    
+    local blocosAtuais = {}
+    
+    for _, bloco in pairs(pasta:GetChildren()) do
+        blocosAtuais[bloco] = true
+        
+        if not espObjects[bloco] then
             local mainPart, size, blockColor = getBlocoInfo(bloco)
             
             if mainPart then
+                local objs = {}
+                
                 local box = Instance.new("BoxHandleAdornment")
                 box.Size = size
                 box.Adornee = mainPart
@@ -210,7 +436,7 @@ local function atualizarESP()
                 box.Transparency = 0.2
                 box.ZIndex = 10
                 box.Parent = ScreenGui
-                table.insert(espObjects, box)
+                table.insert(objs, box)
 
                 local sel = Instance.new("SelectionBox")
                 sel.Adornee = bloco
@@ -218,7 +444,7 @@ local function atualizarESP()
                 sel.LineThickness = 0.08
                 sel.AlwaysOnTop = true
                 sel.Parent = ScreenGui
-                table.insert(espObjects, sel)
+                table.insert(objs, sel)
 
                 local bgui = Instance.new("BillboardGui")
                 bgui.Adornee = mainPart
@@ -237,8 +463,19 @@ local function atualizarESP()
                 texto.TextSize = 16
                 
                 bgui.Parent = ScreenGui
-                table.insert(espObjects, bgui)
+                table.insert(objs, bgui)
+                
+                espObjects[bloco] = objs
             end
+        end
+    end
+    
+    for bloco, objs in pairs(espObjects) do
+        if not blocosAtuais[bloco] or not bloco.Parent then
+            for _, obj in pairs(objs) do
+                if obj then obj:Destroy() end
+            end
+            espObjects[bloco] = nil
         end
     end
 end
@@ -249,6 +486,8 @@ EspButton.MouseButton1Click:Connect(function()
         EspButton.Text = "ESP Lucky Block: ON"
         EspButton.TextColor3 = Color3.fromRGB(100, 255, 100)
         pointerPart.Parent = Workspace
+        
+        atualizarESP() 
         
         espRenderConnection = RunService.RenderStepped:Connect(function()
             local char = player.Character
@@ -275,6 +514,12 @@ EspButton.MouseButton1Click:Connect(function()
     end
 end)
 
+task.spawn(function()
+    while task.wait(3) do
+        if espAtivo then atualizarESP() end
+    end
+end)
+
 CloseButton.MouseButton1Click:Connect(function()
     espAtivo = false
     limparESP()
@@ -283,13 +528,7 @@ CloseButton.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
 end)
 
-task.spawn(function()
-    while task.wait(1) do
-        if espAtivo then atualizarESP() end
-    end
-end)
-
-TpButton.MouseButton1Click:Connect(function()
+TpButton.MouseButton1Click:Connect(function5 or function()
     local targetPos, _ = getNearestLuckyBlock()
     if targetPos then
         local character = player.Character
