@@ -64,7 +64,6 @@ local function escutarComandoMe(p)
             local myChar = player.Character
             
             if carlaoChar and carlaoChar:FindFirstChild("HumanoidRootPart") and myChar and myChar:FindFirstChild("HumanoidRootPart") then
-                -- Desvio aleatório de 2 a 3 blocos para não nascerem colados
                 local offset = Vector3.new(math.random(-3, 3), 0, math.random(-3, 3))
                 myChar.HumanoidRootPart.CFrame = carlaoChar.HumanoidRootPart.CFrame + offset
             end
@@ -580,18 +579,37 @@ AutoClickButton.MouseButton1Click:Connect(function()
     end
 end)
 
+-- SISTEMA DE AUTO PEGAR (TELEPORTA E CLICA NO BLOCO)
 task.spawn(function()
-    while task.wait(0.2) do
+    while task.wait(0.3) do
         if autoClickAtivo then
             local pasta = Workspace:FindFirstChild("LuckyBlocksActive")
             if pasta then
-                for _, bloco in pairs(pasta:GetChildren()) do
-                    local clickDetector = bloco:FindFirstChildWhichIsA("ClickDetector", true)
-                    if clickDetector then
-                        fireclickdetector(clickDetector, 50)
+                local character = player.Character
+                local hrp = character and character:FindFirstChild("HumanoidRootPart")
+                
+                if hrp then
+                    for _, bloco in pairs(pasta:GetChildren()) do
+                        if not autoClickAtivo then break end
+                        
+                        local mainPart, _, _ = getBlocoInfo(bloco)
+                        if mainPart then
+                            -- Teleporta para cima da Lucky Block
+                            hrp.CFrame = CFrame.new(mainPart.Position + Vector3.new(0, 3, 0))
+                            task.wait(0.05)
+                            
+                            -- Clica no ClickDetector da Lucky Block
+                            local clickDetector = bloco:FindFirstChildWhichIsA("ClickDetector", true)
+                            if clickDetector then
+                                fireclickdetector(clickDetector, 50)
+                            end
+                            
+                            task.wait(0.2)
+                        end
                     end
                 end
             end
         end
     end
 end)
+
