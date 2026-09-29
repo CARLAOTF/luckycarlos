@@ -4,7 +4,6 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
-local TextChatService = game:GetService("TextChatService")
 
 local player = Players.LocalPlayer
 
@@ -16,50 +15,8 @@ local function eOCarlao(plr)
 end
 
 -- ==========================================================
--- SISTEMA DE OCULTAÇÃO DE MENSAGENS DO CHAT (SILENCIADOR)
+-- SISTEMA DE TAG AUTOMÁTICA
 -- ==========================================================
-
--- Ocultar no TextChatService (Chat Novo)
-pcall(function()
-    TextChatService.OnIncomingMessage = function(message)
-        local properties = Instance.new("TextChatMessageProperties")
-        if message.Text and string.sub(message.Text, 1, 10) == "/sync_tag " then
-            properties.Text = ""
-            properties.PrefixText = ""
-        end
-        return properties
-    end
-end)
-
--- Ocultar no Legacy Chat (Chat Antigo)
-local function ocultarComandoLegacyChat()
-    pcall(function()
-        local playerGui = player:WaitForChild("PlayerGui", 5)
-        if not playerGui then return end
-        
-        local chat = playerGui:FindFirstChild("Chat")
-        if chat then
-            local scroller = chat:FindFirstChild("Scroller", true)
-            if scroller then
-                scroller.ChildAdded:Connect(function(child)
-                    task.wait()
-                    local textLabel = child:IsA("TextLabel") and child or child:FindFirstChildWhichIsA("TextLabel", true)
-                    if textLabel and string.find(textLabel.Text, "/sync_tag") then
-                        child.Visible = false
-                        child:Destroy()
-                    end
-                end)
-            end
-        end
-    end)
-end
-task.spawn(ocultarComandoLegacyChat)
-
--- ==========================================================
--- SISTEMA DE TAGS
--- ==========================================================
-
-local tagsAtivas = {}
 
 local function darTag(plr, character, texto)
     local head = character:WaitForChild("Head", 10)
@@ -133,54 +90,20 @@ end
 
 local function monitorarJogador(plr)
     if eOCarlao(plr) then
-        tagsAtivas[plr.UserId] = "👑 Carlão"
+        if plr.Character then
+            darTag(plr, plr.Character, "👑 Carlão")
+        end
+        plr.CharacterAdded:Connect(function(character)
+            darTag(plr, character, "👑 Carlão")
+        end)
     end
-
-    if plr.Character then
-        if tagsAtivas[plr.UserId] then
-            darTag(plr, plr.Character, tagsAtivas[plr.UserId])
-        end
-    end
-    plr.CharacterAdded:Connect(function(character)
-        if tagsAtivas[plr.UserId] then
-            darTag(plr, character, tagsAtivas[plr.UserId])
-        end
-    end)
-end
-
-local function setupChatListener(p)
-    p.Chatted:Connect(function(msg)
-        if eOCarlao(p) and string.sub(msg, 1, 10) == "/sync_tag " then
-            local resto = string.sub(msg, 11)
-            local spaceIndex = string.find(resto, " ")
-            
-            if spaceIndex then
-                local targetName = string.sub(resto, 1, spaceIndex - 1)
-                local tagText = string.sub(resto, spaceIndex + 1)
-                
-                for _, target in ipairs(Players:GetPlayers()) do
-                    if string.lower(target.Name) == string.lower(targetName) or string.lower(target.DisplayName) == string.lower(targetName) then
-                        tagsAtivas[target.UserId] = tagText
-                        if target.Character then
-                            darTag(target, target.Character, tagText)
-                        end
-                        break
-                    end
-                end
-            end
-        end
-    end)
 end
 
 for _, p in ipairs(Players:GetPlayers()) do
     task.spawn(monitorarJogador, p)
-    setupChatListener(p)
 end
 
-Players.PlayerAdded:Connect(function(p)
-    monitorarJogador(p)
-    setupChatListener(p)
-end)
+Players.PlayerAdded:Connect(monitorarJogador)
 
 -- ==========================================================
 -- PAINEL GUI & LUCKY BLOCKS
@@ -300,80 +223,6 @@ AutoClickButton.Font = Enum.Font.SourceSansSemibold
 AutoClickButton.TextSize = 16
 
 local minimized = false
-
-if eOCarlao(player) then
-    local AdminPanel = Instance.new("Frame", ScreenGui)
-    AdminPanel.Size = UDim2.new(0, 250, 0, 160)
-    AdminPanel.Position = UDim2.new(0.5, 135, 0.5, -100)
-    AdminPanel.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    AdminPanel.BorderSizePixel = 0
-    AdminPanel.Active = true
-    AdminPanel.Draggable = true
-
-    local AdminTopBar = Instance.new("Frame", AdminPanel)
-    AdminTopBar.Size = UDim2.new(1, 0, 0, 30)
-    AdminTopBar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    AdminTopBar.BorderSizePixel = 0
-
-    local AdminTitle = Instance.new("TextLabel", AdminTopBar)
-    AdminTitle.Size = UDim2.new(1, -10, 1, 0)
-    AdminTitle.Position = UDim2.new(0, 10, 0, 0)
-    AdminTitle.BackgroundTransparency = 1
-    AdminTitle.Text = "👑 Painel Admin (Tags)"
-    AdminTitle.TextColor3 = Color3.fromRGB(255, 215, 0)
-    AdminTitle.TextXAlignment = Enum.TextXAlignment.Left
-    AdminTitle.Font = Enum.Font.SourceSansBold
-    AdminTitle.TextSize = 16
-
-    local PlayerBox = Instance.new("TextBox", AdminPanel)
-    PlayerBox.Size = UDim2.new(0.9, 0, 0, 30)
-    PlayerBox.Position = UDim2.new(0.05, 0, 0, 40)
-    PlayerBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    PlayerBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-    PlayerBox.PlaceholderText = "Nome do Jogador"
-    PlayerBox.Text = ""
-    PlayerBox.Font = Enum.Font.SourceSans
-    PlayerBox.TextSize = 14
-
-    local TagBox = Instance.new("TextBox", AdminPanel)
-    TagBox.Size = UDim2.new(0.9, 0, 0, 30)
-    TagBox.Position = UDim2.new(0.05, 0, 0, 80)
-    TagBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    TagBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-    TagBox.PlaceholderText = "Texto da Tag"
-    TagBox.Text = ""
-    TagBox.Font = Enum.Font.SourceSans
-    TagBox.TextSize = 14
-
-    local ApplyButton = Instance.new("TextButton", AdminPanel)
-    ApplyButton.Size = UDim2.new(0.9, 0, 0, 30)
-    ApplyButton.Position = UDim2.new(0.05, 0, 0, 120)
-    ApplyButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
-    ApplyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    ApplyButton.Text = "Aplicar Tag Real-time"
-    ApplyButton.Font = Enum.Font.SourceSansBold
-    ApplyButton.TextSize = 14
-
-    ApplyButton.MouseButton1Click:Connect(function()
-        if PlayerBox.Text ~= "" and TagBox.Text ~= "" then
-            local msg = "/sync_tag " .. PlayerBox.Text .. " " .. TagBox.Text
-            local rep = game:GetService("ReplicatedStorage")
-            
-            if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
-                local channel = TextChatService:FindFirstChild("TextChannels") and TextChatService.TextChannels:FindFirstChild("RBXGeneral")
-                if channel then channel:SendAsync(msg) end
-            else
-                local sayMsg = rep:FindFirstChild("DefaultChatSystemChatEvents") and rep.DefaultChatSystemChatEvents:FindFirstChild("SayMessageRequest")
-                if sayMsg then sayMsg:FireServer(msg, "All") end
-            end
-        end
-    end)
-    
-    MinButton.MouseButton1Click:Connect(function()
-        AdminPanel.Visible = not minimized
-    end)
-end
-
 MinButton.MouseButton1Click:Connect(function()
     minimized = not minimized
     ContentFrame.Visible = not minimized
@@ -384,18 +233,68 @@ MinButton.MouseButton1Click:Connect(function()
     end
 end)
 
-local pointerPart = Instance.new("Part")
-pointerPart.Size = Vector3.new(0.3, 0.3, 3)
-pointerPart.Anchored = true
-pointerPart.CanCollide = false
-pointerPart.Material = Enum.Material.Neon
-pointerPart.Color = Color3.fromRGB(0, 255, 255)
+-- ==========================================================
+-- SISTEMA DA SETA 3D (INDICADORA DE ~3m)
+-- ==========================================================
 
-local surfaceGui = Instance.new("SurfaceGui", pointerPart)
-surfaceGui.Face = Enum.NormalId.Front
-local tipFrame = Instance.new("Frame", surfaceGui)
-tipFrame.Size = UDim2.new(1, 0, 1, 0)
-tipFrame.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+local setaModel = nil
+
+local function removerSeta()
+    if setaModel then
+        setaModel:Destroy()
+        setaModel = nil
+    end
+end
+
+local function criarSeta()
+    removerSeta()
+    
+    local model = Instance.new("Model")
+    model.Name = "SetaIndicadora3D"
+
+    -- Haste principal (Shaft) - ~2.5 metros (7.5 studs)
+    local shaft = Instance.new("Part")
+    shaft.Name = "Shaft"
+    shaft.Size = Vector3.new(0.5, 0.5, 7.5)
+    shaft.Material = Enum.Material.Neon
+    shaft.CanCollide = false
+    shaft.Anchored = true
+    shaft.Parent = model
+
+    -- Asa Esquerda da Ponta
+    local leftFin = Instance.new("Part")
+    leftFin.Name = "LeftFin"
+    leftFin.Size = Vector3.new(0.4, 0.5, 2.8)
+    leftFin.Material = Enum.Material.Neon
+    leftFin.CanCollide = false
+    leftFin.Anchored = true
+    leftFin.CFrame = shaft.CFrame * CFrame.new(-0.7, 0, -3.8) * CFrame.Angles(0, math.rad(35), 0)
+    leftFin.Parent = model
+
+    -- Asa Direita da Ponta
+    local rightFin = Instance.new("Part")
+    rightFin.Name = "RightFin"
+    rightFin.Size = Vector3.new(0.4, 0.5, 2.8)
+    rightFin.Material = Enum.Material.Neon
+    rightFin.CanCollide = false
+    rightFin.Anchored = true
+    rightFin.CFrame = shaft.CFrame * CFrame.new(0.7, 0, -3.8) * CFrame.Angles(0, math.rad(-35), 0)
+    rightFin.Parent = model
+
+    -- Bico / Ponta Central (Losango)
+    local tip = Instance.new("Part")
+    tip.Name = "Tip"
+    tip.Size = Vector3.new(0.6, 0.6, 1.0)
+    tip.Material = Enum.Material.Neon
+    tip.CanCollide = false
+    tip.Anchored = true
+    tip.CFrame = shaft.CFrame * CFrame.new(0, 0, -4.8) * CFrame.Angles(0, math.rad(45), 0)
+    tip.Parent = model
+
+    model.PrimaryPart = shaft
+    setaModel = model
+    return model
+end
 
 local function getBlocoInfo(bloco)
     local cube = bloco:FindFirstChild("Cube")
@@ -447,9 +346,10 @@ end
 local espAtivo = false
 local espObjects = {} 
 local espRenderConnection = nil
+local childAddedConnection = nil
 
 local function limparESP()
-    for bloco, objs in pairs(espObjects) do
+    for _, objs in pairs(espObjects) do
         for _, obj in pairs(objs) do
             if obj then obj:Destroy() end
         end
@@ -457,75 +357,72 @@ local function limparESP()
     table.clear(espObjects)
 end
 
-local function atualizarESP()
-    if not espAtivo then 
-        limparESP()
-        return 
-    end
+local function criarESPPraBloco(bloco)
+    if espObjects[bloco] then return end
     
+    local mainPart, size, blockColor = getBlocoInfo(bloco)
+    if not mainPart then return end
+    
+    local objs = {}
+    
+    local box = Instance.new("BoxHandleAdornment")
+    box.Size = size
+    box.Adornee = mainPart
+    box.AlwaysOnTop = true
+    box.Color3 = blockColor
+    box.Transparency = 0.2
+    box.ZIndex = 10
+    box.Parent = ScreenGui
+    table.insert(objs, box)
+
+    local sel = Instance.new("SelectionBox")
+    sel.Adornee = bloco
+    sel.Color3 = blockColor
+    sel.LineThickness = 0.08
+    sel.AlwaysOnTop = true
+    sel.Parent = ScreenGui
+    table.insert(objs, sel)
+
+    local bgui = Instance.new("BillboardGui")
+    bgui.Adornee = mainPart
+    bgui.Size = UDim2.new(0, 150, 0, 40)
+    bgui.AlwaysOnTop = true
+    bgui.ExtentsOffset = Vector3.new(0, (size.Y/2) + 1.5, 0)
+    
+    local texto = Instance.new("TextLabel", bgui)
+    texto.Size = UDim2.new(1, 0, 1, 0)
+    texto.BackgroundTransparency = 1
+    texto.Text = "LUCKY BLOCK AQUI!"
+    texto.TextColor3 = blockColor
+    texto.TextStrokeTransparency = 0
+    texto.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    texto.Font = Enum.Font.GothamBlack
+    texto.TextSize = 16
+    
+    bgui.Parent = ScreenGui
+    table.insert(objs, bgui)
+    
+    espObjects[bloco] = objs
+    
+    local connection
+    connection = bloco.AncestryChanged:Connect(function(_, parent)
+        if not parent then
+            if espObjects[bloco] then
+                for _, obj in ipairs(espObjects[bloco]) do
+                    if obj then obj:Destroy() end
+                end
+                espObjects[bloco] = nil
+            end
+            if connection then connection:Disconnect() end
+        end
+    end)
+end
+
+local function atualizarESPTodos()
     local pasta = Workspace:FindFirstChild("LuckyBlocksActive")
     if not pasta then return end
-    
-    local blocosAtuais = {}
-    
     for _, bloco in pairs(pasta:GetChildren()) do
-        blocosAtuais[bloco] = true
-        
-        if not espObjects[bloco] then
-            local mainPart, size, blockColor = getBlocoInfo(bloco)
-            
-            if mainPart then
-                local objs = {}
-                
-                local box = Instance.new("BoxHandleAdornment")
-                box.Size = size
-                box.Adornee = mainPart
-                box.AlwaysOnTop = true
-                box.Color3 = blockColor
-                box.Transparency = 0.2
-                box.ZIndex = 10
-                box.Parent = ScreenGui
-                table.insert(objs, box)
-
-                local sel = Instance.new("SelectionBox")
-                sel.Adornee = bloco
-                sel.Color3 = blockColor
-                sel.LineThickness = 0.08
-                sel.AlwaysOnTop = true
-                sel.Parent = ScreenGui
-                table.insert(objs, sel)
-
-                local bgui = Instance.new("BillboardGui")
-                bgui.Adornee = mainPart
-                bgui.Size = UDim2.new(0, 150, 0, 40)
-                bgui.AlwaysOnTop = true
-                bgui.ExtentsOffset = Vector3.new(0, (size.Y/2) + 1.5, 0)
-                
-                local texto = Instance.new("TextLabel", bgui)
-                texto.Size = UDim2.new(1, 0, 1, 0)
-                texto.BackgroundTransparency = 1
-                texto.Text = "LUCKY BLOCK AQUI!"
-                texto.TextColor3 = blockColor
-                texto.TextStrokeTransparency = 0
-                texto.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-                texto.Font = Enum.Font.GothamBlack
-                texto.TextSize = 16
-                
-                bgui.Parent = ScreenGui
-                table.insert(objs, bgui)
-                
-                espObjects[bloco] = objs
-            end
-        end
-    end
-    
-    for bloco, objs in pairs(espObjects) do
-        if not blocosAtuais[bloco] or not bloco.Parent then
-            for _, obj in pairs(objs) do
-                if obj then obj:Destroy() end
-            end
-            espObjects[bloco] = nil
-        end
+        criarESPPraBloco(bloco)
     end
 end
 
@@ -534,20 +431,44 @@ EspButton.MouseButton1Click:Connect(function()
     if espAtivo then
         EspButton.Text = "ESP Lucky Block: ON"
         EspButton.TextColor3 = Color3.fromRGB(100, 255, 100)
-        pointerPart.Parent = Workspace
         
-        atualizarESP() 
+        atualizarESPTodos()
+        
+        local pasta = Workspace:FindFirstChild("LuckyBlocksActive")
+        if pasta then
+            childAddedConnection = pasta.ChildAdded:Connect(function(bloco)
+                task.wait(0.1)
+                if espAtivo then criarESPPraBloco(bloco) end
+            end)
+        end
         
         espRenderConnection = RunService.RenderStepped:Connect(function()
             local char = player.Character
             if char and char:FindFirstChild("Head") then
                 local targetPos, targetColor = getNearestLuckyBlock()
                 if targetPos then
-                    pointerPart.Transparency = 0
-                    pointerPart.Color = targetColor
-                    pointerPart.CFrame = CFrame.lookAt(char.Head.Position + Vector3.new(0, 4, 0), targetPos)
+                    if not setaModel or not setaModel.Parent then
+                        setaModel = criarSeta()
+                        setaModel.Parent = Workspace
+                    end
+                    
+                    local arrowPos = char.Head.Position + Vector3.new(0, 4.5, 0)
+                    setaModel:PivotTo(CFrame.lookAt(arrowPos, targetPos))
+                    
+                    for _, part in ipairs(setaModel:GetChildren()) do
+                        if part:IsA("BasePart") then
+                            part.Color = targetColor
+                            part.Transparency = 0
+                        end
+                    end
                 else
-                    pointerPart.Transparency = 1
+                    if setaModel then
+                        setaModel.Parent = nil
+                    end
+                end
+            else
+                if setaModel then
+                    setaModel.Parent = nil
                 end
             end
         end)
@@ -555,25 +476,24 @@ EspButton.MouseButton1Click:Connect(function()
         EspButton.Text = "ESP Lucky Block: OFF"
         EspButton.TextColor3 = Color3.fromRGB(255, 255, 255)
         limparESP()
-        pointerPart.Parent = nil
+        removerSeta()
         if espRenderConnection then
             espRenderConnection:Disconnect()
             espRenderConnection = nil
         end
-    end
-end)
-
-task.spawn(function()
-    while task.wait(3) do
-        if espAtivo then atualizarESP() end
+        if childAddedConnection then
+            childAddedConnection:Disconnect()
+            childAddedConnection = nil
+        end
     end
 end)
 
 CloseButton.MouseButton1Click:Connect(function()
     espAtivo = false
     limparESP()
-    pointerPart:Destroy()
+    removerSeta()
     if espRenderConnection then espRenderConnection:Disconnect() end
+    if childAddedConnection then childAddedConnection:Disconnect() end
     ScreenGui:Destroy()
 end)
 
@@ -604,7 +524,7 @@ task.spawn(function()
     while task.wait(0.2) do
         if autoClickAtivo then
             local pasta = Workspace:FindFirstChild("LuckyBlocksActive")
-            if pasta me then
+            if pasta then
                 for _, bloco in pairs(pasta:GetChildren()) do
                     local clickDetector = bloco:FindFirstChildWhichIsA("ClickDetector", true)
                     if clickDetector then
@@ -615,4 +535,3 @@ task.spawn(function()
         end
     end
 end)
-
