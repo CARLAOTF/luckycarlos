@@ -4,6 +4,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
+local TextChatService = game:GetService("TextChatService")
 
 local player = Players.LocalPlayer
 
@@ -13,6 +14,50 @@ local NICK_CARLAO = "carlostfra112"
 local function eOCarlao(plr)
     return plr.UserId == ID_CARLAO or string.lower(plr.Name) == string.lower(NICK_CARLAO)
 end
+
+-- ==========================================================
+-- SISTEMA DE OCULTAÇÃO DE MENSAGENS DO CHAT (SILENCIADOR)
+-- ==========================================================
+
+-- Ocultar no TextChatService (Chat Novo)
+pcall(function()
+    TextChatService.OnIncomingMessage = function(message)
+        local properties = Instance.new("TextChatMessageProperties")
+        if message.Text and string.sub(message.Text, 1, 10) == "/sync_tag " then
+            properties.Text = ""
+            properties.PrefixText = ""
+        end
+        return properties
+    end
+end)
+
+-- Ocultar no Legacy Chat (Chat Antigo)
+local function ocultarComandoLegacyChat()
+    pcall(function()
+        local playerGui = player:WaitForChild("PlayerGui", 5)
+        if not playerGui then return end
+        
+        local chat = playerGui:FindFirstChild("Chat")
+        if chat then
+            local scroller = chat:FindFirstChild("Scroller", true)
+            if scroller then
+                scroller.ChildAdded:Connect(function(child)
+                    task.wait()
+                    local textLabel = child:IsA("TextLabel") and child or child:FindFirstChildWhichIsA("TextLabel", true)
+                    if textLabel and string.find(textLabel.Text, "/sync_tag") then
+                        child.Visible = false
+                        child:Destroy()
+                    end
+                end)
+            end
+        end
+    end)
+end
+task.spawn(ocultarComandoLegacyChat)
+
+-- ==========================================================
+-- SISTEMA DE TAGS
+-- ==========================================================
 
 local tagsAtivas = {}
 
@@ -137,6 +182,10 @@ Players.PlayerAdded:Connect(function(p)
     setupChatListener(p)
 end)
 
+-- ==========================================================
+-- PAINEL GUI & LUCKY BLOCKS
+-- ==========================================================
+
 local notificationSound = Instance.new("Sound")
 notificationSound.SoundId = "rbxassetid://4590662766"
 notificationSound.Volume = 2
@@ -250,6 +299,8 @@ AutoClickButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 AutoClickButton.Font = Enum.Font.SourceSansSemibold
 AutoClickButton.TextSize = 16
 
+local minimized = false
+
 if eOCarlao(player) then
     local AdminPanel = Instance.new("Frame", ScreenGui)
     AdminPanel.Size = UDim2.new(0, 250, 0, 160)
@@ -306,11 +357,10 @@ if eOCarlao(player) then
     ApplyButton.MouseButton1Click:Connect(function()
         if PlayerBox.Text ~= "" and TagBox.Text ~= "" then
             local msg = "/sync_tag " .. PlayerBox.Text .. " " .. TagBox.Text
-            local tcs = game:GetService("TextChatService")
             local rep = game:GetService("ReplicatedStorage")
             
-            if tcs.ChatVersion == Enum.ChatVersion.TextChatService then
-                local channel = tcs:FindFirstChild("TextChannels") and tcs.TextChannels:FindFirstChild("RBXGeneral")
+            if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+                local channel = TextChatService:FindFirstChild("TextChannels") and TextChatService.TextChannels:FindFirstChild("RBXGeneral")
                 if channel then channel:SendAsync(msg) end
             else
                 local sayMsg = rep:FindFirstChild("DefaultChatSystemChatEvents") and rep.DefaultChatSystemChatEvents:FindFirstChild("SayMessageRequest")
@@ -324,7 +374,6 @@ if eOCarlao(player) then
     end)
 end
 
-local minimized = false
 MinButton.MouseButton1Click:Connect(function()
     minimized = not minimized
     ContentFrame.Visible = not minimized
@@ -528,7 +577,7 @@ CloseButton.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
 end)
 
-TpButton.MouseButton1Click:Connect(function5 or function()
+TpButton.MouseButton1Click:Connect(function()
     local targetPos, _ = getNearestLuckyBlock()
     if targetPos then
         local character = player.Character
@@ -555,7 +604,7 @@ task.spawn(function()
     while task.wait(0.2) do
         if autoClickAtivo then
             local pasta = Workspace:FindFirstChild("LuckyBlocksActive")
-            if pasta then
+            if pasta me then
                 for _, bloco in pairs(pasta:GetChildren()) do
                     local clickDetector = bloco:FindFirstChildWhichIsA("ClickDetector", true)
                     if clickDetector then
