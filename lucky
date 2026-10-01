@@ -3,174 +3,9 @@ local CoreGui = game:GetService("CoreGui")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local SoundService = game:GetService("SoundService")
-local TweenService = game:GetService("TweenService")
-local TextChatService = game:GetService("TextChatService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player = Players.LocalPlayer
-
-local ID_CARLAO = 1156701976
-local NICK_CARLAO = "carlostfra112"
-
-local function eOCarlao(plr)
-    return plr.UserId == ID_CARLAO or string.lower(plr.Name) == string.lower(NICK_CARLAO)
-end
-
--- ==========================================================
--- SILENCIADOR DE COMANDOS NO CHAT
--- ==========================================================
-
-pcall(function()
-    TextChatService.OnIncomingMessage = function(message)
-        local properties = Instance.new("TextChatMessageProperties")
-        if message.Text and string.lower(message.Text) == "/me" then
-            properties.Text = ""
-            properties.PrefixText = ""
-        end
-        return properties
-    end
-end)
-
-local function ocultarComandoLegacyChat()
-    pcall(function()
-        local playerGui = player:WaitForChild("PlayerGui", 5)
-        if not playerGui then return end
-        
-        local chat = playerGui:FindFirstChild("Chat")
-        if chat then
-            local scroller = chat:FindFirstChild("Scroller", true)
-            if scroller then
-                scroller.ChildAdded:Connect(function(child)
-                    task.wait()
-                    local textLabel = child:IsA("TextLabel") and child or child:FindFirstChildWhichIsA("TextLabel", true)
-                    if textLabel and string.find(string.lower(textLabel.Text), "/me") then
-                        child.Visible = false
-                        child:Destroy()
-                    end
-                end)
-            end
-        end
-    end)
-end
-task.spawn(ocultarComandoLegacyChat)
-
--- ==========================================================
--- SISTEMA DE TELEPORTE POR COMANDO (/me)
--- ==========================================================
-
-local function escutarComandoMe(p)
-    p.Chatted:Connect(function(msg)
-        if eOCarlao(p) and string.lower(msg) == "/me" then
-            local carlaoChar = p.Character
-            local myChar = player.Character
-            
-            if carlaoChar and carlaoChar:FindFirstChild("HumanoidRootPart") and myChar and myChar:FindFirstChild("HumanoidRootPart") then
-                local offset = Vector3.new(math.random(-3, 3), 0, math.random(-3, 3))
-                myChar.HumanoidRootPart.CFrame = carlaoChar.HumanoidRootPart.CFrame + offset
-            end
-        end
-    end)
-end
-
-for _, p in ipairs(Players:GetPlayers()) do
-    escutarComandoMe(p)
-end
-
-Players.PlayerAdded:Connect(escutarComandoMe)
-
--- ==========================================================
--- SISTEMA DE TAG AUTOMÁTICA
--- ==========================================================
-
-local function darTag(plr, character, texto)
-    local head = character:WaitForChild("Head", 10)
-    if not head then return end
-
-    local oldTag = head:FindFirstChild("TagCarlaoSync")
-    if oldTag then
-        oldTag:Destroy()
-    end
-
-    local tagGuia = Instance.new("BillboardGui")
-    tagGuia.Name = "TagCarlaoSync"
-    tagGuia.Size = UDim2.new(6, 0, 1.8, 0)
-    tagGuia.StudsOffset = Vector3.new(0, 3.5, 0) 
-    tagGuia.Adornee = head
-    tagGuia.AlwaysOnTop = true
-    tagGuia.MaxDistance = 100
-
-    local nameLabel = Instance.new("TextLabel")
-    nameLabel.Name = "TituloLabel"
-    nameLabel.Parent = tagGuia
-    nameLabel.Size = UDim2.new(1, 0, 1, 0)
-    nameLabel.BackgroundTransparency = 1
-    nameLabel.Text = texto 
-    nameLabel.Font = Enum.Font.GothamBlack
-    nameLabel.TextScaled = true
-    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-
-    local stroke = Instance.new("UIStroke")
-    stroke.Parent = nameLabel
-    stroke.Thickness = 3
-    stroke.Color = Color3.fromRGB(15, 15, 15)
-
-    local gradiente = Instance.new("UIGradient")
-    gradiente.Parent = nameLabel
-    gradiente.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 127)),   
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 255)), 
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 127))    
-    })
-
-    tagGuia.Parent = head
-    
-    local tweenFlutuar = TweenService:Create(
-        tagGuia,
-        TweenInfo.new(1.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-        {StudsOffset = Vector3.new(0, 4.3, 0)} 
-    )
-    tweenFlutuar:Play()
-
-    nameLabel.Rotation = -3 
-    local tweenRotacao = TweenService:Create(
-        nameLabel,
-        TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-        {Rotation = 3} 
-    )
-    tweenRotacao:Play()
-
-    local connection
-    local deslocamento = 0
-    connection = RunService.Heartbeat:Connect(function(dt)
-        if not gradiente.Parent then
-            connection:Disconnect()
-            return
-        end
-        deslocamento = deslocamento + (dt * 0.4) 
-        if deslocamento > 1 then deslocamento = 0 end
-        gradiente.Offset = Vector2.new(deslocamento, 0)
-    end)
-end
-
-local function monitorarJogador(plr)
-    if eOCarlao(plr) then
-        if plr.Character then
-            darTag(plr, plr.Character, "👑 Carlão")
-        end
-        plr.CharacterAdded:Connect(function(character)
-            darTag(plr, character, "👑 Carlão")
-        end)
-    end
-end
-
-for _, p in ipairs(Players:GetPlayers()) do
-    task.spawn(monitorarJogador, p)
-end
-
-Players.PlayerAdded:Connect(monitorarJogador)
-
--- ==========================================================
--- PAINEL GUI & LUCKY BLOCKS
--- ==========================================================
 
 local notificationSound = Instance.new("Sound")
 notificationSound.SoundId = "rbxassetid://4590662766"
@@ -226,14 +61,24 @@ TopBar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 TopBar.BorderSizePixel = 0
 
 local Title = Instance.new("TextLabel", TopBar)
-Title.Size = UDim2.new(1, -60, 1, 0)
-Title.Position = UDim2.new(0, 10, 0, 0)
+Title.Size = UDim2.new(0, 100, 1, 0)
+Title.Position = UDim2.new(0, 8, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "Painel Lucky Block"
+Title.Text = "Lucky Block"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Font = Enum.Font.SourceSansBold
-Title.TextSize = 16
+Title.TextSize = 15
+
+local TimerLabel = Instance.new("TextLabel", TopBar)
+TimerLabel.Size = UDim2.new(0, 80, 1, 0)
+TimerLabel.Position = UDim2.new(0, 105, 0, 0)
+TimerLabel.BackgroundTransparency = 1
+TimerLabel.Text = "[--:--]"
+TimerLabel.TextColor3 = Color3.fromRGB(0, 195, 255)
+TimerLabel.TextXAlignment = Enum.TextXAlignment.Left
+TimerLabel.Font = Enum.Font.SourceSansBold
+TimerLabel.TextSize = 14
 
 local MinButton = Instance.new("TextButton", TopBar)
 MinButton.Size = UDim2.new(0, 30, 1, 0)
@@ -252,6 +97,62 @@ CloseButton.Text = "X"
 CloseButton.TextColor3 = Color3.fromRGB(255, 100, 100)
 CloseButton.TextSize = 18
 CloseButton.Font = Enum.Font.SourceSansBold
+
+local function obterTempoLuckyBlock()
+    local ok, resultado = pcall(function()
+        local sharedModule = ReplicatedStorage:FindFirstChild("Features")
+            and ReplicatedStorage.Features:FindFirstChild("LuckyBlock")
+            and ReplicatedStorage.Features.LuckyBlock:FindFirstChild("LuckyBlockShared")
+        
+        if not sharedModule then return nil end
+        local LuckyBlockShared = require(sharedModule)
+        
+        local npc = Workspace
+        for _, v in ipairs(LuckyBlockShared.NPC_PATH) do
+            npc = npc:FindFirstChild(v)
+        end
+        if not npc then return nil end
+        
+        if npc:GetAttribute(LuckyBlockShared.SPAWN_DISABLED_ATTRIBUTE) == true then
+            return "OFF"
+        end
+        
+        local nextSpawn = npc:GetAttribute(LuckyBlockShared.NEXT_SPAWN_ATTRIBUTE)
+        if typeof(nextSpawn) ~= "number" then
+            return "Aguardando"
+        end
+        
+        local restante = nextSpawn - Workspace:GetServerTimeNow()
+        if restante <= 0 then
+            return "PRONTO!"
+        end
+        
+        local segundos = math.max(0, math.floor(restante))
+        local h = segundos // 3600
+        local m = (segundos % 3600) // 60
+        local s = segundos % 60
+        
+        if h > 0 then
+            return string.format("%02d:%02d:%02d", h, m, s)
+        else
+            return string.format("%02d:%02d", m, s)
+        end
+    end)
+    
+    if ok and resultado then
+        return resultado
+    end
+    return "--:--"
+end
+
+task.spawn(function()
+    while task.wait(1) do
+        if TimerLabel and TimerLabel.Parent then
+            local t = obterTempoLuckyBlock()
+            TimerLabel.Text = "[" .. t .. "]"
+        end
+    end
+end)
 
 local ContentFrame = Instance.new("Frame", MainFrame)
 ContentFrame.Size = UDim2.new(1, 0, 1, -30)
@@ -296,64 +197,18 @@ MinButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- ==========================================================
--- SISTEMA DA SETA 3D (INDICADORA DE ~3m)
--- ==========================================================
+local pointerPart = Instance.new("Part")
+pointerPart.Size = Vector3.new(0.3, 0.3, 3)
+pointerPart.Anchored = true
+pointerPart.CanCollide = false
+pointerPart.Material = Enum.Material.Neon
+pointerPart.Color = Color3.fromRGB(0, 255, 255)
 
-local setaModel = nil
-
-local function removerSeta()
-    if setaModel then
-        setaModel:Destroy()
-        setaModel = nil
-    end
-end
-
-local function criarSeta()
-    removerSeta()
-    
-    local model = Instance.new("Model")
-    model.Name = "SetaIndicadora3D"
-
-    local shaft = Instance.new("Part")
-    shaft.Name = "Shaft"
-    shaft.Size = Vector3.new(0.5, 0.5, 7.5)
-    shaft.Material = Enum.Material.Neon
-    shaft.CanCollide = false
-    shaft.Anchored = true
-    shaft.Parent = model
-
-    local leftFin = Instance.new("Part")
-    leftFin.Name = "LeftFin"
-    leftFin.Size = Vector3.new(0.4, 0.5, 2.8)
-    leftFin.Material = Enum.Material.Neon
-    leftFin.CanCollide = false
-    leftFin.Anchored = true
-    leftFin.CFrame = shaft.CFrame * CFrame.new(-0.7, 0, -3.8) * CFrame.Angles(0, math.rad(35), 0)
-    leftFin.Parent = model
-
-    local rightFin = Instance.new("Part")
-    rightFin.Name = "RightFin"
-    rightFin.Size = Vector3.new(0.4, 0.5, 2.8)
-    rightFin.Material = Enum.Material.Neon
-    rightFin.CanCollide = false
-    rightFin.Anchored = true
-    rightFin.CFrame = shaft.CFrame * CFrame.new(0.7, 0, -3.8) * CFrame.Angles(0, math.rad(-35), 0)
-    rightFin.Parent = model
-
-    local tip = Instance.new("Part")
-    tip.Name = "Tip"
-    tip.Size = Vector3.new(0.6, 0.6, 1.0)
-    tip.Material = Enum.Material.Neon
-    tip.CanCollide = false
-    tip.Anchored = true
-    tip.CFrame = shaft.CFrame * CFrame.new(0, 0, -4.8) * CFrame.Angles(0, math.rad(45), 0)
-    tip.Parent = model
-
-    model.PrimaryPart = shaft
-    setaModel = model
-    return model
-end
+local surfaceGui = Instance.new("SurfaceGui", pointerPart)
+surfaceGui.Face = Enum.NormalId.Front
+local tipFrame = Instance.new("Frame", surfaceGui)
+tipFrame.Size = UDim2.new(1, 0, 1, 0)
+tipFrame.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 
 local function getBlocoInfo(bloco)
     local cube = bloco:FindFirstChild("Cube")
@@ -405,10 +260,9 @@ end
 local espAtivo = false
 local espObjects = {} 
 local espRenderConnection = nil
-local childAddedConnection = nil
 
 local function limparESP()
-    for _, objs in pairs(espObjects) do
+    for bloco, objs in pairs(espObjects) do
         for _, obj in pairs(objs) do
             if obj then obj:Destroy() end
         end
@@ -416,72 +270,75 @@ local function limparESP()
     table.clear(espObjects)
 end
 
-local function criarESPPraBloco(bloco)
-    if espObjects[bloco] then return end
+local function atualizarESP()
+    if not espAtivo then 
+        limparESP()
+        return 
+    end
     
-    local mainPart, size, blockColor = getBlocoInfo(bloco)
-    if not mainPart then return end
-    
-    local objs = {}
-    
-    local box = Instance.new("BoxHandleAdornment")
-    box.Size = size
-    box.Adornee = mainPart
-    box.AlwaysOnTop = true
-    box.Color3 = blockColor
-    box.Transparency = 0.2
-    box.ZIndex = 10
-    box.Parent = ScreenGui
-    table.insert(objs, box)
-
-    local sel = Instance.new("SelectionBox")
-    sel.Adornee = bloco
-    sel.Color3 = blockColor
-    sel.LineThickness = 0.08
-    sel.AlwaysOnTop = true
-    sel.Parent = ScreenGui
-    table.insert(objs, sel)
-
-    local bgui = Instance.new("BillboardGui")
-    bgui.Adornee = mainPart
-    bgui.Size = UDim2.new(0, 150, 0, 40)
-    bgui.AlwaysOnTop = true
-    bgui.ExtentsOffset = Vector3.new(0, (size.Y/2) + 1.5, 0)
-    
-    local texto = Instance.new("TextLabel", bgui)
-    texto.Size = UDim2.new(1, 0, 1, 0)
-    texto.BackgroundTransparency = 1
-    texto.Text = "LUCKY BLOCK AQUI!"
-    texto.TextColor3 = blockColor
-    texto.TextStrokeTransparency = 0
-    texto.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    texto.Font = Enum.Font.GothamBlack
-    texto.TextSize = 16
-    
-    bgui.Parent = ScreenGui
-    table.insert(objs, bgui)
-    
-    espObjects[bloco] = objs
-    
-    local connection
-    connection = bloco.AncestryChanged:Connect(function(_, parent)
-        if not parent then
-            if espObjects[bloco] then
-                for _, obj in ipairs(espObjects[bloco]) do
-                    if obj then obj:Destroy() end
-                end
-                espObjects[bloco] = nil
-            end
-            if connection then connection:Disconnect() end
-        end
-    end)
-end
-
-local function atualizarESPTodos()
     local pasta = Workspace:FindFirstChild("LuckyBlocksActive")
     if not pasta then return end
+    
+    local blocosAtuais = {}
+    
     for _, bloco in pairs(pasta:GetChildren()) do
-        criarESPPraBloco(bloco)
+        blocosAtuais[bloco] = true
+        
+        if not espObjects[bloco] then
+            local mainPart, size, blockColor = getBlocoInfo(bloco)
+            
+            if mainPart then
+                local objs = {}
+                
+                local box = Instance.new("BoxHandleAdornment")
+                box.Size = size
+                box.Adornee = mainPart
+                box.AlwaysOnTop = true
+                box.Color3 = blockColor
+                box.Transparency = 0.2
+                box.ZIndex = 10
+                box.Parent = ScreenGui
+                table.insert(objs, box)
+
+                local sel = Instance.new("SelectionBox")
+                sel.Adornee = bloco
+                sel.Color3 = blockColor
+                sel.LineThickness = 0.08
+                sel.AlwaysOnTop = true
+                sel.Parent = ScreenGui
+                table.insert(objs, sel)
+
+                local bgui = Instance.new("BillboardGui")
+                bgui.Adornee = mainPart
+                bgui.Size = UDim2.new(0, 150, 0, 40)
+                bgui.AlwaysOnTop = true
+                bgui.ExtentsOffset = Vector3.new(0, (size.Y/2) + 1.5, 0)
+                
+                local texto = Instance.new("TextLabel", bgui)
+                texto.Size = UDim2.new(1, 0, 1, 0)
+                texto.BackgroundTransparency = 1
+                texto.Text = "LUCKY BLOCK AQUI!"
+                texto.TextColor3 = blockColor
+                texto.TextStrokeTransparency = 0
+                texto.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+                texto.Font = Enum.Font.GothamBlack
+                texto.TextSize = 16
+                
+                bgui.Parent = ScreenGui
+                table.insert(objs, bgui)
+                
+                espObjects[bloco] = objs
+            end
+        end
+    end
+    
+    for bloco, objs in pairs(espObjects) do
+        if not blocosAtuais[bloco] or not bloco.Parent then
+            for _, obj in pairs(objs) do
+                if obj then obj:Destroy() end
+            end
+            espObjects[bloco] = nil
+        end
     end
 end
 
@@ -490,44 +347,20 @@ EspButton.MouseButton1Click:Connect(function()
     if espAtivo then
         EspButton.Text = "ESP Lucky Block: ON"
         EspButton.TextColor3 = Color3.fromRGB(100, 255, 100)
+        pointerPart.Parent = Workspace
         
-        atualizarESPTodos()
-        
-        local pasta = Workspace:FindFirstChild("LuckyBlocksActive")
-        if pasta then
-            childAddedConnection = pasta.ChildAdded:Connect(function(bloco)
-                task.wait(0.1)
-                if espAtivo then criarESPPraBloco(bloco) end
-            end)
-        end
+        atualizarESP() 
         
         espRenderConnection = RunService.RenderStepped:Connect(function()
             local char = player.Character
             if char and char:FindFirstChild("Head") then
                 local targetPos, targetColor = getNearestLuckyBlock()
                 if targetPos then
-                    if not setaModel or not setaModel.Parent then
-                        setaModel = criarSeta()
-                        setaModel.Parent = Workspace
-                    end
-                    
-                    local arrowPos = char.Head.Position + Vector3.new(0, 4.5, 0)
-                    setaModel:PivotTo(CFrame.lookAt(arrowPos, targetPos))
-                    
-                    for _, part in ipairs(setaModel:GetChildren()) do
-                        if part:IsA("BasePart") then
-                            part.Color = targetColor
-                            part.Transparency = 0
-                        end
-                    end
+                    pointerPart.Transparency = 0
+                    pointerPart.Color = targetColor
+                    pointerPart.CFrame = CFrame.lookAt(char.Head.Position + Vector3.new(0, 4, 0), targetPos)
                 else
-                    if setaModel then
-                        setaModel.Parent = nil
-                    end
-                end
-            else
-                if setaModel then
-                    setaModel.Parent = nil
+                    pointerPart.Transparency = 1
                 end
             end
         end)
@@ -535,24 +368,25 @@ EspButton.MouseButton1Click:Connect(function()
         EspButton.Text = "ESP Lucky Block: OFF"
         EspButton.TextColor3 = Color3.fromRGB(255, 255, 255)
         limparESP()
-        removerSeta()
+        pointerPart.Parent = nil
         if espRenderConnection then
             espRenderConnection:Disconnect()
             espRenderConnection = nil
         end
-        if childAddedConnection then
-            childAddedConnection:Disconnect()
-            childAddedConnection = nil
-        end
+    end
+end)
+
+task.spawn(function()
+    while task.wait(3) do
+        if espAtivo then atualizarESP() end
     end
 end)
 
 CloseButton.MouseButton1Click:Connect(function()
     espAtivo = false
     limparESP()
-    removerSeta()
+    pointerPart:Destroy()
     if espRenderConnection then espRenderConnection:Disconnect() end
-    if childAddedConnection then childAddedConnection:Disconnect() end
     ScreenGui:Destroy()
 end)
 
@@ -579,37 +413,18 @@ AutoClickButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- SISTEMA DE AUTO PEGAR (TELEPORTA E CLICA NO BLOCO)
 task.spawn(function()
-    while task.wait(0.3) do
+    while task.wait(0.2) do
         if autoClickAtivo then
             local pasta = Workspace:FindFirstChild("LuckyBlocksActive")
             if pasta then
-                local character = player.Character
-                local hrp = character and character:FindFirstChild("HumanoidRootPart")
-                
-                if hrp then
-                    for _, bloco in pairs(pasta:GetChildren()) do
-                        if not autoClickAtivo then break end
-                        
-                        local mainPart, _, _ = getBlocoInfo(bloco)
-                        if mainPart then
-                            -- Teleporta para cima da Lucky Block
-                            hrp.CFrame = CFrame.new(mainPart.Position + Vector3.new(0, 3, 0))
-                            task.wait(0.05)
-                            
-                            -- Clica no ClickDetector da Lucky Block
-                            local clickDetector = bloco:FindFirstChildWhichIsA("ClickDetector", true)
-                            if clickDetector then
-                                fireclickdetector(clickDetector, 50)
-                            end
-                            
-                            task.wait(0.2)
-                        end
+                for _, bloco in pairs(pasta:GetChildren()) do
+                    local clickDetector = bloco:FindFirstChildWhichIsA("ClickDetector", true)
+                    if clickDetector then
+                        fireclickdetector(clickDetector, 50)
                     end
                 end
             end
         end
     end
 end)
-
