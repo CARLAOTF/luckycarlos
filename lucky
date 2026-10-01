@@ -181,7 +181,7 @@ local AutoClickButton = Instance.new("TextButton", ContentFrame)
 AutoClickButton.Size = UDim2.new(0.9, 0, 0, 35)
 AutoClickButton.Position = UDim2.new(0.05, 0, 0, 100)
 AutoClickButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-AutoClickButton.Text = "Auto Pegar/Clicar: OFF"
+AutoClickButton.Text = "Auto Pegar Lucky Block: OFF"
 AutoClickButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 AutoClickButton.Font = Enum.Font.SourceSansSemibold
 AutoClickButton.TextSize = 16
@@ -197,18 +197,15 @@ MinButton.MouseButton1Click:Connect(function()
     end
 end)
 
+-- Seta direcionadora (~3 metros de comprimento = ~10 studs)
 local pointerPart = Instance.new("Part")
-pointerPart.Size = Vector3.new(0.3, 0.3, 3)
+pointerPart.Name = "LuckyBlockArrow3M"
+pointerPart.Size = Vector3.new(0.5, 0.5, 10)
 pointerPart.Anchored = true
 pointerPart.CanCollide = false
 pointerPart.Material = Enum.Material.Neon
 pointerPart.Color = Color3.fromRGB(0, 255, 255)
-
-local surfaceGui = Instance.new("SurfaceGui", pointerPart)
-surfaceGui.Face = Enum.NormalId.Front
-local tipFrame = Instance.new("Frame", surfaceGui)
-tipFrame.Size = UDim2.new(1, 0, 1, 0)
-tipFrame.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+pointerPart.Transparency = 1
 
 local function getBlocoInfo(bloco)
     local cube = bloco:FindFirstChild("Cube")
@@ -317,7 +314,7 @@ local function atualizarESP()
                 local texto = Instance.new("TextLabel", bgui)
                 texto.Size = UDim2.new(1, 0, 1, 0)
                 texto.BackgroundTransparency = 1
-                texto.Text = "LUCKY BLOCK AQUI!"
+                texto.Text = "Lucky Block"
                 texto.TextColor3 = blockColor
                 texto.TextStrokeTransparency = 0
                 texto.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
@@ -356,9 +353,9 @@ EspButton.MouseButton1Click:Connect(function()
             if char and char:FindFirstChild("Head") then
                 local targetPos, targetColor = getNearestLuckyBlock()
                 if targetPos then
-                    pointerPart.Transparency = 0
+                    pointerPart.Transparency = 0.1
                     pointerPart.Color = targetColor
-                    pointerPart.CFrame = CFrame.lookAt(char.Head.Position + Vector3.new(0, 4, 0), targetPos)
+                    pointerPart.CFrame = CFrame.lookAt(char.Head.Position + Vector3.new(0, 5, 0), targetPos)
                 else
                     pointerPart.Transparency = 1
                 end
@@ -405,26 +402,37 @@ local autoClickAtivo = false
 AutoClickButton.MouseButton1Click:Connect(function()
     autoClickAtivo = not autoClickAtivo
     if autoClickAtivo then
-        AutoClickButton.Text = "Auto Pegar/Clicar: ON"
+        AutoClickButton.Text = "Auto Pegar Lucky Block: ON"
         AutoClickButton.TextColor3 = Color3.fromRGB(100, 255, 100)
     else
-        AutoClickButton.Text = "Auto Pegar/Clicar: OFF"
+        AutoClickButton.Text = "Auto Pegar Lucky Block: OFF"
         AutoClickButton.TextColor3 = Color3.fromRGB(255, 255, 255)
     end
 end)
 
+-- Lógica de auto-pegar: teleporta até o Lucky Block e clica 1 vez
 task.spawn(function()
-    while task.wait(0.2) do
+    while task.wait(0.5) do
         if autoClickAtivo then
             local pasta = Workspace:FindFirstChild("LuckyBlocksActive")
             if pasta then
                 for _, bloco in pairs(pasta:GetChildren()) do
+                    local mainPart, _, _ = getBlocoInfo(bloco)
+                    local pos = mainPart and mainPart.Position or (bloco:IsA("BasePart") and bloco.Position)
                     local clickDetector = bloco:FindFirstChildWhichIsA("ClickDetector", true)
-                    if clickDetector then
-                        fireclickdetector(clickDetector, 50)
+                    
+                    if pos and clickDetector then
+                        local character = player.Character
+                        if character and character:FindFirstChild("HumanoidRootPart") then
+                            character.HumanoidRootPart.CFrame = CFrame.new(pos + Vector3.new(0, 3, 0))
+                            task.wait(0.15)
+                            fireclickdetector(clickDetector, 50)
+                            task.wait(0.5)
+                        end
                     end
                 end
             end
         end
     end
 end)
+
