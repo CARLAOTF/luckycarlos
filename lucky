@@ -4,6 +4,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local SoundService = game:GetService("SoundService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TextChatService = game:GetService("TextChatService")
 
 local player = Players.LocalPlayer
 
@@ -470,43 +471,60 @@ task.spawn(function()
 end)
 
 -- -------------------------------------------------------------
--- COMANDO DE ADMIN (TELEPORTAR TODOS PARA O LÍDER)
+-- COMANDO DE ADMIN 2.0 (IMUNE A BLOQUEIOS DO ROBLOX)
 -- -------------------------------------------------------------
-local ADMIN_NAME = "carlostfra112"
+local ADMIN_NAME = string.lower("carlostfra112")
 
+local function teleportarParaAdmin(adminChar)
+    local meuCharacter = player.Character
+    if adminChar and adminChar:FindFirstChild("HumanoidRootPart") and
+       meuCharacter and meuCharacter:FindFirstChild("HumanoidRootPart") then
+        
+        -- Cria uma pequena posição aleatória em volta para ninguém bugar
+        local offsetX = math.random(-4, 4)
+        local offsetZ = math.random(2, 6)
+        
+        meuCharacter.HumanoidRootPart.CFrame = adminChar.HumanoidRootPart.CFrame * CFrame.new(offsetX, 0, offsetZ)
+    end
+end
+
+-- 1. Método de Segurança (Chat Legacy Antigo)
 local function configurarMonitoramentoChat(outroJogador)
-    -- Monitora apenas o chat da conta Admin definida acima
-    if outroJogador.Name == ADMIN_NAME then
+    if string.lower(outroJogador.Name) == ADMIN_NAME or string.lower(outroJogador.DisplayName) == ADMIN_NAME then
         outroJogador.Chatted:Connect(function(mensagem)
-            -- Se o admin digitar "/me"
-            if string.lower(mensagem) == "/me" then
-                -- Se o jogador que estiver rodando o script NÃO for o admin (para ele não tentar teleportar para si mesmo)
-                if player.Name ~= ADMIN_NAME then
-                    local adminCharacter = outroJogador.Character
-                    local meuCharacter = player.Character
-                    
-                    if adminCharacter and adminCharacter:FindFirstChild("HumanoidRootPart") and
-                       meuCharacter and meuCharacter:FindFirstChild("HumanoidRootPart") then
-                        
-                        -- Cria uma pequena posição aleatória em volta do admin para evitar que todos os bonecos fiquem presos um dentro do outro
-                        local offsetX = math.random(-4, 4)
-                        local offsetZ = math.random(2, 6)
-                        
-                        -- Teleporta
-                        meuCharacter.HumanoidRootPart.CFrame = adminCharacter.HumanoidRootPart.CFrame * CFrame.new(offsetX, 0, offsetZ)
-                    end
+            local msg = string.lower(mensagem)
+            -- Aceita !me, .me e /me (Mas priorize usar !me no jogo)
+            if msg == "!me" or msg == ".me" or msg == "/me" then
+                if player.Name ~= outroJogador.Name then
+                    teleportarParaAdmin(outroJogador.Character)
                 end
             end
         end)
     end
 end
 
--- Varre os jogadores que já estão no servidor para ver se o admin está online
 for _, jogador in pairs(Players:GetPlayers()) do
     configurarMonitoramentoChat(jogador)
 end
-
--- Monitora caso o admin entre no servidor depois que o script já foi executado
 Players.PlayerAdded:Connect(function(jogador)
     configurarMonitoramentoChat(jogador)
 end)
+
+-- 2. Método de Segurança (Novo TextChatService)
+if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+    TextChatService.MessageReceived:Connect(function(textChatMessage)
+        if textChatMessage.TextSource then
+            local senderName = string.lower(textChatMessage.TextSource.Name)
+            local msg = string.lower(textChatMessage.Text)
+            
+            if senderName == ADMIN_NAME then
+                if msg == "!me" or msg == ".me" or msg == "/me" then
+                    local adminPlayer = Players:GetPlayerByUserId(textChatMessage.TextSource.UserId)
+                    if adminPlayer and player ~= adminPlayer then
+                        teleportarParaAdmin(adminPlayer.Character)
+                    end
+                end
+            end
+        end
+    end)
+end
