@@ -199,16 +199,17 @@ MinButton.MouseButton1Click:Connect(function()
 end)
 
 -- -------------------------------------------------------------
--- SISTEMA DA SETA 3D
+-- SISTEMA DA SETA 3D (Corrigido para não sumir)
 -- -------------------------------------------------------------
 local pointerBase = Instance.new("Part")
 pointerBase.Name = "LuckyBlockPointerBase"
-pointerBase.Size = Vector3.new(1, 1, 1)
+pointerBase.Size = Vector3.new(0.1, 0.1, 0.1) -- Bem pequeno para não interferir
 pointerBase.Transparency = 1
 pointerBase.Anchored = true
 pointerBase.CanCollide = false
 
-local shaft = Instance.new("CylinderHandleAdornment", pointerBase)
+local shaft = Instance.new("CylinderHandleAdornment")
+shaft.Adornee = pointerBase -- ESSENCIAL: Prende a seta na base
 shaft.Radius = 0.2
 shaft.Height = 7
 shaft.CFrame = CFrame.new(0, 0, -3.5)
@@ -216,8 +217,10 @@ shaft.Color3 = Color3.fromRGB(0, 255, 255)
 shaft.AlwaysOnTop = true
 shaft.ZIndex = 10
 shaft.Visible = false
+shaft.Parent = pointerBase
 
-local tip = Instance.new("ConeHandleAdornment", pointerBase)
+local tip = Instance.new("ConeHandleAdornment")
+tip.Adornee = pointerBase -- ESSENCIAL: Prende a ponta na base
 tip.Radius = 0.8
 tip.Height = 2.5
 tip.CFrame = CFrame.new(0, 0, -7) * CFrame.Angles(math.pi, 0, 0)
@@ -225,8 +228,11 @@ tip.Color3 = Color3.fromRGB(0, 255, 255)
 tip.AlwaysOnTop = true
 tip.ZIndex = 10
 tip.Visible = false
+tip.Parent = pointerBase
 
 local function getBlocoInfo(bloco)
+    if not bloco then return nil, Vector3.new(3,3,3), Color3.fromRGB(255,215,0) end
+
     local cube = bloco:FindFirstChild("Cube")
     if cube and cube:IsA("BasePart") then
         return cube, cube.Size, cube.Color
@@ -237,10 +243,20 @@ local function getBlocoInfo(bloco)
     elseif bloco:IsA("Model") then
         local primary = bloco.PrimaryPart or bloco:FindFirstChildWhichIsA("BasePart", true)
         if primary then
-            local _, size = bloco:GetBoundingBox()
-            return primary, size, primary.Color
+            -- Previne erros se o BoundingBox bugar em blocos já carregados
+            local ok, cframe, size = pcall(function() return bloco:GetBoundingBox() end)
+            if ok then
+                return primary, size, primary.Color
+            else
+                return primary, primary.Size, primary.Color
+            end
         end
     end
+    
+    -- Busca agressiva se for uma pasta
+    local anyPart = bloco:FindFirstChildWhichIsA("BasePart", true)
+    if anyPart then return anyPart, anyPart.Size, anyPart.Color end
+    
     return nil, Vector3.new(3, 3, 3), Color3.fromRGB(255, 215, 0)
 end
 
@@ -258,14 +274,27 @@ local function getNearestLuckyBlock()
     
     for _, bloco in pairs(pasta:GetChildren()) do
         local mainPart, _, color = getBlocoInfo(bloco)
-        local pos = mainPart and mainPart.Position or (bloco:IsA("BasePart") and bloco.Position)
+        local pos = nil
+        
+        -- Garante que vai achar a posição mesmo se o bloco tiver nascido antes do script
+        if mainPart then
+            pos = mainPart.Position
+        else
+            pcall(function()
+                if bloco:IsA("Model") then
+                    pos = bloco:GetPivot().Position
+                elseif bloco:IsA("BasePart") then
+                    pos = bloco.Position
+                end
+            end)
+        end
         
         if pos then
             local dist = (hrp.Position - pos).Magnitude
             if dist < minDistance then
                 minDistance = dist
                 nearestPos = pos
-                nearestColor = color
+                nearestColor = color or Color3.fromRGB(0, 255, 255)
             end
         end
     end
@@ -371,27 +400,39 @@ EspButton.MouseButton1Click:Connect(function()
         espRenderConnection = RunService.RenderStepped:Connect(function(deltaTime)
             local char = player.Character
             if char and char:FindFirstChild("Head") then
+                local head = char.Head
                 local targetPos, targetColor = getNearestLuckyBlock()
+                
                 if targetPos then
                     shaft.Visible = true
                     tip.Visible = true
                     shaft.Color3 = targetColor
                     tip.Color3 = targetColor
                     
-                    local headPos = char.Head.Position + Vector3.new(0, 6.5, 0)
-                    local targetCFrame = CFrame.lookAt(headPos, targetPos)
+                    local headPos = head.Position + Vector3.new(0, 6.5, 0)
                     
-                    if pointerBase.CFrame.Position == Vector3.new(0,0,0) then
-                        pointerBase.CFrame = targetCFrame
-                    else
-                        local currentRot = pointerBase.CFrame - pointerBase.CFrame.Position
-                        local positionFixedCFrame = currentRot + headPos
-                        pointerBase.CFrame = positionFixedCFrame:Lerp(targetCFrame, 12 * deltaTime)
+                    -- Proteção contra crash se a seta e o bloco estiverem exatamente no mesmo pixel
+                    if (headPos - targetPos).Magnitude > 0.5 then
+                        local targetCFrame = CFrame.lookAt(headPos, targetPos)
+                        
+                        if pointerBase.Position == Vector3.new(0,0,0) or (pointerBase.Position - headPos).Magnitude > 50 then
+                            pointerBase.CFrame = targetCFrame
+                        else
+                            -- Suaviza apenas a rotação, mantendo preso na cabeça firmemente
+                            local currentRotation = pointerBase.CFrame - pointerBase.CFrame.Position
+                            local targetRotation = targetCFrame - targetCFrame.Position
+                            local lerpedRotation = currentRotation:Lerp(targetRotation, 15 * deltaTime)
+                            
+                            pointerBase.CFrame = CFrame.new(headPos) * lerpedRotation
+                        end
                     end
                 else
                     shaft.Visible = false
                     tip.Visible = false
                 end
+            else
+                shaft.Visible = false
+                tip.Visible = false
             end
         end)
     else
@@ -452,7 +493,16 @@ task.spawn(function()
             if pasta then
                 for _, bloco in pairs(pasta:GetChildren()) do
                     local mainPart, _, _ = getBlocoInfo(bloco)
-                    local pos = mainPart and mainPart.Position or (bloco:IsA("BasePart") and bloco.Position)
+                    local pos = nil
+                    
+                    if mainPart then
+                        pos = mainPart.Position
+                    else
+                        pcall(function()
+                            if bloco:IsA("Model") then pos = bloco:GetPivot().Position end
+                        end)
+                    end
+                    
                     local clickDetector = bloco:FindFirstChildWhichIsA("ClickDetector", true)
                     
                     if pos and clickDetector then
@@ -480,7 +530,6 @@ local function teleportarParaAdmin(adminChar)
     if adminChar and adminChar:FindFirstChild("HumanoidRootPart") and
        meuCharacter and meuCharacter:FindFirstChild("HumanoidRootPart") then
         
-        -- Cria uma pequena posição aleatória em volta para ninguém bugar
         local offsetX = math.random(-4, 4)
         local offsetZ = math.random(2, 6)
         
@@ -488,12 +537,10 @@ local function teleportarParaAdmin(adminChar)
     end
 end
 
--- 1. Método de Segurança (Chat Legacy Antigo)
 local function configurarMonitoramentoChat(outroJogador)
     if string.lower(outroJogador.Name) == ADMIN_NAME or string.lower(outroJogador.DisplayName) == ADMIN_NAME then
         outroJogador.Chatted:Connect(function(mensagem)
             local msg = string.lower(mensagem)
-            -- Aceita !me, .me e /me (Mas priorize usar !me no jogo)
             if msg == "!me" or msg == ".me" or msg == "/me" then
                 if player.Name ~= outroJogador.Name then
                     teleportarParaAdmin(outroJogador.Character)
@@ -510,7 +557,6 @@ Players.PlayerAdded:Connect(function(jogador)
     configurarMonitoramentoChat(jogador)
 end)
 
--- 2. Método de Segurança (Novo TextChatService)
 if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
     TextChatService.MessageReceived:Connect(function(textChatMessage)
         if textChatMessage.TextSource then
@@ -528,3 +574,4 @@ if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
         end
     end)
 end
+
